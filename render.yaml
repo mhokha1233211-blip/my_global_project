@@ -1,10 +1,5 @@
 services:
   - type: web
-    name: global-unified-engine
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    plan: free
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
+    startCommand: gunicorn main:app
