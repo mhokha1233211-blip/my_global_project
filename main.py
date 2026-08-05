@@ -1,16 +1,16 @@
 import os
+import threading
 from flask import Flask, jsonify
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 
-# 1. إعداد خادم Flask للبوت والـ API
 app = Flask(__name__)
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 bot = telebot.TeleBot(TOKEN)
 
 # ----------------------------------------------------
-# 🌐 واجهة الـ API المعُدلة (JSON Structure)
+# 🌐 API Endpoint
 # ----------------------------------------------------
 @app.route('/', methods=['GET'])
 def health_check():
@@ -28,28 +28,14 @@ def health_check():
     })
 
 # ----------------------------------------------------
-# 🤖 معالجات البوت (Telegram Handlers v2.0)
+# 🤖 Telegram Handlers
 # ----------------------------------------------------
-
-# أمر /start - إنشاء قائمة الأزرار التفاعلية
 @bot.message_handler(commands=['start'])
 def start(message):
     keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-
-    keyboard.row(
-        KeyboardButton("📄 تحليل اتفاقية"),
-        KeyboardButton("💳 تحليل بطاقة")
-    )
-
-    keyboard.row(
-        KeyboardButton("🏦 تحليل بنك"),
-        KeyboardButton("🔐 تحليل SWIFT")
-    )
-
-    keyboard.row(
-        KeyboardButton("📚 المصطلحات"),
-        KeyboardButton("📊 التقرير النهائي")
-    )
+    keyboard.row(KeyboardButton("📄 تحليل اتفاقية"), KeyboardButton("💳 تحليل بطاقة"))
+    keyboard.row(KeyboardButton("🏦 تحليل بنك"), KeyboardButton("🔐 تحليل SWIFT"))
+    keyboard.row(KeyboardButton("📚 المصطلحات"), KeyboardButton("📊 التقرير النهائي"))
 
     bot.send_message(
         message.chat.id,
@@ -58,60 +44,48 @@ def start(message):
         reply_markup=keyboard
     )
 
-# 📄 معالج تحليل اتفاقية
 @bot.message_handler(func=lambda message: message.text == "📄 تحليل اتفاقية")
 def contract(message):
-    bot.send_message(
-        message.chat.id,
-        "📄 **أرسل ملف الاتفاقية** (PDF أو DOCX أو صور) وسأبدأ تحليلها واستخراج البيانات فوراً."
-    )
+    bot.send_message(message.chat.id, "📄 **أرسل ملف الاتفاقية** (PDF أو DOCX أو صور) وسأبدأ تحليلها.")
 
-# 💳 معالج تحليل بطاقة
 @bot.message_handler(func=lambda message: message.text == "💳 تحليل بطاقة")
 def card_analysis(message):
-    bot.send_message(
-        message.chat.id,
-        "💳 **أرسل رقم البطاقة** أو أول 6 أرقام (BIN) للتحقق من المصدر والتفاصيل."
-    )
+    bot.send_message(message.chat.id, "💳 **أرسل رقم البطاقة** أو أول 6 أرقام (BIN) للتحقق من المصدر.")
 
-# 🏦 معالج تحليل بنك
 @bot.message_handler(func=lambda message: message.text == "🏦 تحليل بنك")
 def bank_analysis(message):
-    bot.send_message(
-        message.chat.id,
-        "🏦 **أدخل اسم البنك** أو الدولة لإجراء التحليل والتحقق من الموثوقية."
-    )
+    bot.send_message(message.chat.id, "🏦 **أدخل اسم البنك** أو الدولة لإجراء التحليل.")
 
-# 🔐 معالج تحليل SWIFT
 @bot.message_handler(func=lambda message: message.text == "🔐 تحليل SWIFT")
 def swift_analysis(message):
-    bot.send_message(
-        message.chat.id,
-        "🔐 **أرسل رمز SWIFT / BIC** المطلي للتحقق من صحة الفرع والدولة."
-    )
+    bot.send_message(message.chat.id, "🔐 **أرسل رمز SWIFT / BIC** للتحقق من صحة الفرع.")
 
-# 📚 معالج المصطلحات
 @bot.message_handler(func=lambda message: message.text == "📚 المصطلحات")
 def terms_glossary(message):
     terms_text = (
         "📚 **قاموس المصطلحات المالي:**\n\n"
         "• **SWIFT Code:** رمز تعريفي عالمي للبنوك للمقاصات الدولية.\n"
         "• **IBAN:** رقم الحساب البنكي الدولي.\n"
-        "• **LC (Letter of Credit):** خطاب اعتماد مستندي لضمان عمليات التجارة."
+        "• **LC (Letter of Credit):** خطاب اعتماد مستندي."
     )
     bot.send_message(message.chat.id, terms_text, parse_mode="Markdown")
 
-# 📊 معالج التقرير النهائي
 @bot.message_handler(func=lambda message: message.text == "📊 التقرير النهائي")
 def final_report(message):
-    bot.send_message(
-        message.chat.id,
-        "📊 **التقرير النهائي:**\nلا يوجد تحليل مكتمل في الجلسة الحالية. قم بإرسال مستند لإنشاء التقرير."
-    )
+    bot.send_message(message.chat.id, "📊 **التقرير النهائي:**\nلا يوجد تحليل مكتمل في الجلسة الحالية.")
 
 # ----------------------------------------------------
-# 🚀 تشغيل خادم Flask مع البوت
+# 🚀 Run Bot in Background Thread & Flask Server
 # ----------------------------------------------------
+def start_bot():
+    try:
+        bot.infinity_polling(timeout=10, long_polling_timeout=5)
+    except Exception as e:
+        print(f"Bot error: {e}")
+
+# تشغيل البوت في الخلفية
+threading.Thread(target=start_bot, daemon=True).start()
+
 if __name__ == '__main__':
-    # تشغيل البوت في الخلفية أو عبر Webhook حسب إعدادك
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
